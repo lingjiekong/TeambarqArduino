@@ -23,6 +23,8 @@
 void setup() {
   Serial.begin(9600);
 
+  // hi: karan
+
   // connect to wifi.
   WiFi.begin("Stanford", "");
   Serial.print("connecting");
