@@ -73,7 +73,7 @@ void loop() {
   delay(1000);
 
   // append a new value to /logs
-  String name = Firebase.push("logs", n++);
+  String name = Firebase.push("logs");
   Serial.print("pushed: /logs/");
   Serial.println(name);
   delay(1000);
