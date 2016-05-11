@@ -26,7 +26,8 @@ void setup() {
   // hi: karan
 
   // connect to wifi.
-  WiFi.begin("Stanford", "");
+  //WiFi.begin("Stanford", "");
+  WiFi.begin("SUOC1788-207", "OC1788-207SU57");
   Serial.print("connecting");
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print(".");

@@ -27,7 +27,7 @@ Distributed as-is; no warranty is given.
 // MMA8452Q Register Definitions //
 ///////////////////////////////////
 enum MMA8452Q_Register {
-	STATUS = 0x00,
+	STATUS_M = 0x00,
 	OUT_X_MSB = 0x01,
 	OUT_X_LSB = 0x02,
 	OUT_Y_MSB = 0x03,
