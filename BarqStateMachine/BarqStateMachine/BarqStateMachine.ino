@@ -168,7 +168,7 @@ static void WifiInit(void){
   Serial.println();
   Serial.print("connected: ");
   Serial.println(WiFi.localIP()); 
-  Firebase.begin("wifiboardtest.firebaseIO.com", "");
+  Firebase.begin("barq.firebaseIO.com", "");
   Serial.println("End of WifiInit"); 
 }
 
@@ -179,11 +179,11 @@ static void AccelInit(void){
 }
 
 static void Add2Firebase(void){
-  Firebase.set("MACID", "5c:cf:7f:00:6c:6c");
+  Firebase.set("Bar1/RunningQueue/5ccf7f006c6c/MACid", "5ccf7f006c6c");
 }
 
 static void Delete2Firebase(void){
-  Firebase.remove("MACID");
+  Firebase.remove("Bar1/RunningQueue/5ccf7f006c6c");
 }
 
 static void ReadMACID(void){
