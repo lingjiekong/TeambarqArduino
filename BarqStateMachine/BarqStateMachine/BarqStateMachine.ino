@@ -35,6 +35,26 @@
 #define AccelThreshold 2.5
 #define ButtonPin 14
 
+#include <Adafruit_NeoPixel.h>
+
+#ifdef __AVR__
+  #include <avr/power.h>
+#endif
+
+#define PIN 13  // the digital pin the data line is connected to
+
+// Modifed NeoPixel sample for the holiday craft project
+
+// Parameter 1 = number of pixels in strip
+// Parameter 2 = pin number (most are valid)
+// Parameter 3 = pixel type flags, add together as needed:
+//   NEO_KHZ800  800 KHz bitstream (most NeoPixel products w/WS2812 LEDs)
+//   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
+//   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
+//   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(16, PIN, NEO_GRB + NEO_KHZ800);
+
+
 /*---------------------------- Module Functions ---------------------------*/
 /* prototypes for private functions for this machine.They should be functions
    relevant to the behavior of this state machine
@@ -52,6 +72,16 @@ static bool Add2Queue(void);
 static bool Delete2Queue(void);
 static void Add2Firebase(void);
 static void Delete2Firebase(void);
+
+// LED Functions
+static void LEDInit(void);
+static void LEDService(void);
+static void fade_down(int num_steps, int wait, int R, int G, int B);
+static void fade_up(int num_steps, int wait, int R, int G, int B);
+static void setRingColor(uint32_t c);
+static void flash(void);
+static void fadered2blue(void);
+static void fadeblue2red(void);
 
 /*---------------------------- Module Variables ---------------------------*/
 // everybody needs a state variable, you may need others as well.
@@ -81,6 +111,7 @@ void setup() {
   WifiInit();
   AccelInit();
   ReadMACID();
+  LEDInit();
   LastAccelSampleTime = millis();
   CurrentState = STATEWAIT4SERVICE;
   Serial.println("CurrentState = STATEWAIT4SERVICE");
@@ -98,6 +129,7 @@ void loop() {
       if (true == Add){
         CurrentState = STATEONQUEUE;
         Serial.println("CurrentState = STATEONQUEUE");
+        LEDService();
       }
     break;
 
@@ -106,6 +138,14 @@ void loop() {
         CurrentState = STATEWAIT4SERVICE;
         Serial.println("CurrentState = STATEWAIT4SERVICE");
       }
+      /*if ((const char)Firebase.get("b9da2970-e73c-4700-a166-5d4de4955e1b/RunningQueue/5ccf7f006c6c") == "") {
+          Serial.println("Order was deleted from firebase"); 
+          CurrentState = STATEWAIT4SERVICE;
+          Serial.println("CurrentState = STATEWAIT4SERVICE");
+          fadered2blue();
+          delay(1000);
+          setRingColor(strip.Color(0,100,0));
+      }*/
     break;
   }
 }
@@ -178,12 +218,25 @@ static void AccelInit(void){
   Serial.println("End of AccelInit"); 
 }
 
-static void Add2Firebase(void){
-  Firebase.set("Bar1/RunningQueue/5ccf7f006c6c/MACid", "5ccf7f006c6c");
+static void LEDInit(void) {
+  // LED init
+  strip.begin();
+  strip.show(); // Initialize all pixels to 'off'
+  setRingColor(strip.Color(0,100,0));
 }
 
+static void Add2Firebase(void){
+  Firebase.set("0f0f1366-75d7-4a06-bb37-f03efd6ad06a/RunningQueue/5ccf7f006c6c/MACid", "5ccf7f006c6c");
+  //LEDService();
+}
+
+
+
 static void Delete2Firebase(void){
-  Firebase.remove("Bar1/RunningQueue/5ccf7f006c6c");
+  Firebase.remove("0f0f1366-75d7-4a06-bb37-f03efd6ad06a/RunningQueue/5ccf7f006c6c");
+  fadered2blue();
+  delay(1000);
+  setRingColor(strip.Color(0,100,0));
 }
 
 static void ReadMACID(void){
@@ -196,88 +249,81 @@ static void ReadMACID(void){
 }
 
 
+static void LEDService(void) {
+  setRingColor(strip.Color(0,0,100));
+  delay(1000);
+  fadeblue2red();   // fade to red
+  setRingColor(strip.Color(100,0,0));
+  delay(1000);
+  flash(); // order ready flash red
+  setRingColor(strip.Color(100,0,0));
+  delay(1000);
+  //fadered2blue(); // fade to blue
+}
 
-//
-//// put your main code here, to run repeatedly:
-//// Use the accel.available() function to wait for new data
-////  from the accelerometer.
-//if (accel.available())
-//{
-//  // First, use accel.read() to read the new variables:
-//  accel.read();
-//  
-//  // accel.read() will update two sets of variables. 
-//  // * int's x, y, and z will store the signed 12-bit values 
-//  //   read out of the accelerometer.
-//  // * floats cx, cy, and cz will store the calculated 
-//  //   acceleration from those 12-bit values. These variables 
-//  //   are in units of g's.
-//  // Check the two function declarations below for an example
-//  // of how to use these variables.
-//  printCalculatedAccels();
-//  //printAccels(); // Uncomment to print digital readings
-//  
-//  // The library also supports the portrait/landscape detection
-//  //  of the MMA8452Q. Check out this function declaration for
-//  //  an example of how to use that.
-//  printOrientation();
-//  
-//  Serial.println(); // Print new line every time.
-//}
-//// The function demonstrates how to use the accel.x, accel.y and
-////  accel.z variables.
-//// Before using these variables you must call the accel.read()
-////  function!
-//void printAccels()
-//{
-//  Serial.print(accel.x, 3);
-//  Serial.print("\t");
-//  Serial.print(accel.y, 3);
-//  Serial.print("\t");
-//  Serial.print(accel.z, 3);
-//  Serial.print("\t");
-//}
-//
-//// This function demonstrates how to use the accel.cx, accel.cy,
-////  and accel.cz variables.
-//// Before using these variables you must call the accel.read()
-////  function!
-//void printCalculatedAccels()
-//{ 
-//  Serial.print(accel.cx, 3);
-//  Serial.print("\t");
-//  Serial.print(accel.cy, 3);
-//  Serial.print("\t");
-//  Serial.print(accel.cz, 3);
-//  Serial.print("\t");
-//}
-//
-//// This function demonstrates how to use the accel.readPL()
-//// function, which reads the portrait/landscape status of the
-//// sensor.
-//void printOrientation()
-//{
-//  // accel.readPL() will return a byte containing information
-//  // about the orientation of the sensor. It will be either
-//  // PORTRAIT_U, PORTRAIT_D, LANDSCAPE_R, LANDSCAPE_L, or
-//  // LOCKOUT.
-//  byte pl = accel.readPL();
-//  switch (pl)
-//  {
-//  case PORTRAIT_U:
-//    Serial.print("Portrait Up");
-//    break;
-//  case PORTRAIT_D:
-//    Serial.print("Portrait Down");
-//    break;
-//  case LANDSCAPE_R:
-//    Serial.print("Landscape Right");
-//    break;
-//  case LANDSCAPE_L:
-//    Serial.print("Landscape Left");
-//    break;
-//  case LOCKOUT:
-//    Serial.print("Flat");
-//    break;
-//  }
-//}
+
+void setRingColor(uint32_t c) {
+  for(uint16_t i=0; i<strip.numPixels(); i++) {
+    strip.setPixelColor(i, c);
+  }
+  strip.show();
+}
+
+void flash(void) {
+  for (uint16_t i = 0; i < 10; i++) {
+    setRingColor(strip.Color(255,0,0));
+    delay(200);
+    setRingColor(strip.Color(50,0,0));
+    delay(200);
+  }
+}
+
+void fadeblue2red(void) {
+  uint16_t i, j;
+   for (i=0; i<100; i++) {
+      for(j=0; j<strip.numPixels(); j++) {
+         strip.setPixelColor(j, strip.Color(0+i, 0, 100-i));
+      }  
+   strip.show();
+   delay(50);
+   }  
+}
+
+void fadered2blue(void) {
+  uint16_t i, j;
+   for (i=0; i<100; i++) {
+      for(j=0; j<strip.numPixels(); j++) {
+         strip.setPixelColor(j, strip.Color(100-i, 0, 0+i));
+      }  
+   strip.show();
+   delay(50);
+   }  
+}
+
+// fade_up - fade up to the given color
+void fade_up(int num_steps, int wait, int R, int G, int B) {
+   uint16_t i, j;
+   
+   for (i=0; i<num_steps; i++) {
+      for(j=0; j<strip.numPixels(); j++) {
+         strip.setPixelColor(j, strip.Color(R * i / num_steps, G * i / num_steps, B * i / num_steps));
+      }  
+   strip.show();
+   delay(wait);
+   }  
+} // fade_up
+
+
+void fade_down(int num_steps, int wait, int R, int G, int B) {
+   uint16_t i, j;
+   
+   for (i=100; i>1; i--) {
+      for(j=0; j<strip.numPixels(); j++) {
+         strip.setPixelColor(j, strip.Color(R * i / num_steps, G * i / num_steps, B * i / num_steps));
+      }  
+   strip.show();
+   delay(wait);
+   }  
+} // fade_up
+
+
