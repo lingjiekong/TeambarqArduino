@@ -39,15 +39,19 @@
 /* prototypes for private functions for this machine.They should be functions
    relevant to the behavior of this state machine
 */
-static void WifiInit(void);
-static void AccelInit(void);
+
+// Event Checkers
 static void Check4Add(void);
 static void Check4Delete(void);
+
+// Functions
+static void WifiInit(void);
+static void AccelInit(void);
+static void ReadMACID(void);
 static bool Add2Queue(void);
 static bool Delete2Queue(void);
 static void Add2Firebase(void);
 static void Delete2Firebase(void);
-static void ReadMACID(void);
 
 /*---------------------------- Module Variables ---------------------------*/
 // everybody needs a state variable, you may need others as well.
