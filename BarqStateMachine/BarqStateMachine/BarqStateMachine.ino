@@ -41,7 +41,10 @@
 #define AccelSampleTimeLength 500 // 2000 millisecond
 #define AccelCounterThreshold 50
 #define AccelThreshold 2.5
-
+#define MicrophoneMax 0.87
+#define MicrophoneMin 0.47
+#define ColorMax 100
+#define ColorMin 0
 
 // Modifed NeoPixel sample for the holiday craft project
 
@@ -86,6 +89,8 @@ static void fadeblue2red(void);
 // everybody needs a state variable, you may need others as well.
 // type of state variable should match that of enum in header file
 typedef enum {STATEWAIT4SERVICE, STATEONQUEUE} BarqState_t;
+
+// for Accel
 BarqState_t CurrentState;
 MMA8452Q accel;
 unsigned long LastAccelSampleTime;
@@ -100,6 +105,11 @@ static uint8_t MAC_array[6];
 static char MAC_char[18];
 static String MAC_string;
 
+// for Microphone
+double MicrophonValue = 0.00;
+char MicrophonePin = A0;
+
+// for LED
 uint32_t off = strip.Color(0,0,0);
 uint32_t blue = strip.Color(0,0,100);
 uint32_t blue_low = strip.Color(0,0,30);
@@ -107,7 +117,7 @@ uint32_t red = strip.Color(100,0,0);
 uint32_t green = strip.Color(0,100,0);
 uint32_t red_high = strip.Color(255,0,0);
 uint32_t red_low = strip.Color(50,0,0);
-
+uint32_t CalColor;
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************/
 
@@ -130,6 +140,9 @@ void loop() {
   Check4Add();
   Check4Delete();
 
+  // Continuous Service
+  LEDService();
+
   // State Machine
   switch (CurrentState) {
     case STATEWAIT4SERVICE:
@@ -138,7 +151,7 @@ void loop() {
         CurrentState = STATEONQUEUE;
         Serial.println("CurrentState = STATEONQUEUE");
         Add2Firebase();
-        LEDService();
+        //LEDService();
       }
     break;
 
@@ -280,17 +293,34 @@ static void deleteService(void) {
   delay(1000);
   setRingColor(off);
 }
+
 static void LEDService(void) {
-  setRingColor(blue);
-  delay(1000);
-  fadeblue2red();   // fade to red
-  setRingColor(red);
-  delay(1000);
-  flash(); // order ready flash red
-  setRingColor(red);
-  delay(1000);
-  //fadered2blue(); // fade to blue
+  if (Add == true){
+    MicrophonValue = (analogRead(MicrophonePin)/1024.00);
+    CalColor = (uint32_t)(((ColorMax - ColorMin)/(MicrophoneMax - MicrophoneMin))*(MicrophonValue-MicrophoneMin));
+    Serial.print("CalColor analog value is: ");
+    Serial.println(CalColor);
+    if (CalColor > 100)
+    {
+      CalColor = 100;
+    }
+    if (CalColor < 0)
+    {
+      CalColor = 0;
+    }
+    setRingColor(strip.Color(CalColor,0,(100-CalColor)));
+  }
 }
+
+//  setRingColor(blue);
+//  delay(1000);
+//  fadeblue2red();   // fade to red
+//  setRingColor(red);
+//  delay(1000);
+//  flash(); // order ready flash red
+//  setRingColor(red);
+//  delay(1000);
+//  //fadered2blue(); // fade to blue
 
 
 void setRingColor(uint32_t c) {
@@ -313,7 +343,7 @@ void fadeblue2red(void) {
   uint16_t i, j;
    for (i=0; i<100; i++) {
       for(j=0; j<strip.numPixels(); j++) {
-         strip.setPixelColor(j, strip.Color(0+i, 0, 100-i));
+         strip.setPixelColor(j, strip.Color(0+i, 0, 100-i)); // R upto 100 is Red
       }  
    strip.show();
    delay(50);
@@ -324,37 +354,39 @@ void fadered2blue(void) {
   uint16_t i, j;
    for (i=0; i<100; i++) {
       for(j=0; j<strip.numPixels(); j++) {
-         strip.setPixelColor(j, strip.Color(100-i, 0, 0+i));
+         strip.setPixelColor(j, strip.Color(100-i, 0, 0+i)); // B upto 100 is Blue
       }  
    strip.show();
    delay(10);
    }  
 }
 
+
+
 // fade_up - fade up to the given color
-void fade_up(int num_steps, int wait, int R, int G, int B) {
-   uint16_t i, j;
-   
-   for (i=0; i<num_steps; i++) {
-      for(j=0; j<strip.numPixels(); j++) {
-         strip.setPixelColor(j, strip.Color(R * i / num_steps, G * i / num_steps, B * i / num_steps));
-      }  
-   strip.show();
-   delay(wait);
-   }  
-} // fade_up
+//void fade_up(int num_steps, int wait, int R, int G, int B) {
+//   uint16_t i, j;
+//   
+//   for (i=0; i<num_steps; i++) {
+//      for(j=0; j<strip.numPixels(); j++) {
+//         strip.setPixelColor(j, strip.Color(R * i / num_steps, G * i / num_steps, B * i / num_steps));
+//      }  
+//   strip.show();
+//   delay(wait);
+//   }  
+//} // fade_up
 
 
-void fade_down(int num_steps, int wait, int R, int G, int B) {
-   uint16_t i, j;
-   
-   for (i=100; i>1; i--) {
-      for(j=0; j<strip.numPixels(); j++) {
-         strip.setPixelColor(j, strip.Color(R * i / num_steps, G * i / num_steps, B * i / num_steps));
-      }  
-   strip.show();
-   delay(wait);
-   }  
-} // fade_up
+//void fade_down(int num_steps, int wait, int R, int G, int B) {
+//   uint16_t i, j;
+//   
+//   for (i=100; i>1; i--) {
+//      for(j=0; j<strip.numPixels(); j++) {
+//         strip.setPixelColor(j, strip.Color(R * i / num_steps, G * i / num_steps, B * i / num_steps));
+//      }  
+//   strip.show();
+//   delay(wait);
+//   }  
+//} // fade_up
 
 
