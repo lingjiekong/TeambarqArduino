@@ -37,6 +37,7 @@
 /*----------------------------- Module Defines ----------------------------*/
 
 #define LEDPin 13  // the digital pin the LED ring data line is connected to
+#define DebugPin 15
 #define ButtonPin 14
 #define AccelSampleTimeLength 500 // 2000 millisecond
 #define AccelCounterThreshold 50
@@ -115,6 +116,7 @@ void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
   pinMode(ButtonPin, INPUT); 
+  pinMode(DebugPin, OUTPUT);
   WifiInit();
   AccelInit();
   ReadMACID();
@@ -246,7 +248,8 @@ static void WifiInit(void){
 static void AccelInit(void){
   // I2C for accelerometer int
   accel.init();
-  Serial.println("End of AccelInit"); 
+  Serial.println("End of AccelInit");
+  digitalWrite(DebugPin, HIGH);
 }
 
 static void LEDInit(void) {
@@ -316,7 +319,7 @@ void fadeblue2red(void) {
          strip.setPixelColor(j, strip.Color(0+i, 0, 100-i));
       }  
    strip.show();
-   delay(50);
+   delay(20);
    }  
 }
 
