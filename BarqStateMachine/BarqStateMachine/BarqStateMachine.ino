@@ -169,7 +169,7 @@ void loop() {
         Serial.println("CurrentState = STATEWAIT4SERVICE");
         deleteService(); // led fade red to blue
       } else {
-        Serial.println("exists");
+        //Serial.println("exists");
       }
     break;
       /*Serial.println("JSON: " + json);
