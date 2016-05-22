@@ -1,51 +1,32 @@
 /****************************************************************************
- Module
    BarqStateMachine.c
- Revision
-   1.0.1
- Description
-   This is a template file for implementing flat state machines under the
-   Gen2 Events and Services Framework.
- Notes
- History
- When           Who     What/Why
- -------------- ---     --------
- 01/15/12 11:12 jec      revisions for Gen2 framework
- 11/07/11 11:26 jec      made the queue static
- 10/30/11 17:59 jec      fixed references to CurrentEvent in RunTemplateSM()
- 10/23/11 18:20 jec      began conversion from SMTemplate.c (02/20/07 rev)
 ****************************************************************************/
 
-/*----------------------------- Include Files -----------------------------*/
-/* include header files for this state machine as well as any machines at the
-   next lower level in the hierarchy that are sub-machines to this machine
-*/
-
-// Wifi Module
+/*----------------------------- Includes ----------------------------*/
+  // Wifi
 #include <ESP8266WiFi.h>
 #include <FirebaseArduino.h>
-// Accelerometer and UART Module
-#include <Wire.h> // Must include Wire library for I2C
+  // Accelerometer and I2C
 #include <SFE_MMA8452Q.h> // Includes the SFE_MMA8452Q library
+#include <Wire.h> // Must include Wire library for I2C
+  // LED Ring
 #include <Adafruit_NeoPixel.h>
-
 #ifdef __AVR__
   #include <avr/power.h>
 #endif
 
+/*-------------------------- Module Defines ----------------------------*/
+#define LEDPin 13  // LED Ring
+#define ButtonPin 12 // Delete Button
+#define DebugPin 15 // Blue Init Debug LED
 
-/*----------------------------- Module Defines ----------------------------*/
-
-#define LEDPin 13  // the digital pin the LED ring data line is connected to
-#define DebugPin 15
-#define ButtonPin 14
-#define AccelSampleTimeLength 500 // 2000 millisecond
+#define AccelSampleTimeLength 100 // 2000 millisecond
 #define AccelCounterThreshold 50
 #define AccelThreshold 2.5
-
+#define TIME_DEBOUNCE 1000
+#define TIME_ACCEL_SAMPLE 500
 
 // Modifed NeoPixel sample for the holiday craft project
-
 // Parameter 1 = number of pixels in strip
 // Parameter 2 = pin number (most are valid)
 // Parameter 3 = pixel type flags, add together as needed:
@@ -56,13 +37,11 @@
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(16, LEDPin, NEO_GRB + NEO_KHZ800);
 
 /*---------------------------- Module Functions ---------------------------*/
-/* prototypes for private functions for this machine.They should be functions
-   relevant to the behavior of this state machine
-*/
 
 // Event Checkers
 static void Check4Add(void);
 static void Check4Delete(void);
+static void CheckDebounceTimerExpired();
 
 // Functions
 static void WifiInit(void);
@@ -76,27 +55,26 @@ static void Delete2Firebase(void);
 // LED Functions
 static void LEDInit(void);
 static void LEDService(void);
-static void fade_down(int num_steps, int wait, int R, int G, int B);
-static void fade_up(int num_steps, int wait, int R, int G, int B);
+static void deleteService(void);
 static void setRingColor(uint32_t c);
 static void flash(void);
 static void fadered2blue(void);
 static void fadeblue2red(void);
 
 /*---------------------------- Module Variables ---------------------------*/
-// everybody needs a state variable, you may need others as well.
-// type of state variable should match that of enum in header file
-typedef enum {STATEWAIT4SERVICE, STATEONQUEUE} BarqState_t;
+
+typedef enum {STATE_WAITING, STATE_IN_QUEUE} BarqState_t;
 BarqState_t CurrentState;
 MMA8452Q accel;
-unsigned long LastAccelSampleTime;
-float Accelz = 0;
-int AccelCounter = 0;
-int counterflipped = 0;
+static unsigned long LastAccelSampleTime;
+static unsigned long LastTimeDebounce;
 static bool Add = false;
 static bool Delete = false;
+static bool Debouncing_Flag = false;
 static bool CurrentButtonPinStatus = false; // put pull down resistor on the circuit
 static bool LastButtonPinStatus = false; // put pull down resistor on the cirucit
+float Accelz = 0;
+int AccelCounter = 0;
 static uint8_t MAC_array[6];
 static char MAC_char[18];
 static String MAC_string;
@@ -110,8 +88,6 @@ uint32_t red_high = strip.Color(255,0,0);
 uint32_t red_low = strip.Color(50,0,0);
 
 /*------------------------------ Module Code ------------------------------*/
-/****************************************************************************/
-
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
@@ -122,108 +98,102 @@ void setup() {
   ReadMACID();
   LEDInit();
   LastAccelSampleTime = millis();
-  CurrentState = STATEWAIT4SERVICE;
-  Serial.println("CurrentState = STATEWAIT4SERVICE");
-  //Serial.println("MMA8452Q Test Code!");
+  CurrentState = STATE_WAITING;
+  Serial.println("CurrentState = STATE_WAITING");
 }
 
+/*------------------------------ Main Loop ------------------------------*/
 void loop() {
-  // Event Checker
+  
+  // Event Checkers
   Check4Add();
   Check4Delete();
+  CheckDebounceTimerExpired();
 
   // State Machine
   switch (CurrentState) {
-    case STATEWAIT4SERVICE:
+    case STATE_WAITING:
       if (true == Add){
         Delete = false;
-        CurrentState = STATEONQUEUE;
-        Serial.println("CurrentState = STATEONQUEUE");
+        CurrentState = STATE_IN_QUEUE;
+        Serial.println("CurrentState = STATE_IN_QUEUE");
         Add2Firebase();
         LEDService();
       }
     break;
 
-    case STATEONQUEUE:
+    case STATE_IN_QUEUE:
       if (true == Delete){
-        CurrentState = STATEWAIT4SERVICE;
-        Serial.println("CurrentState = STATEWAIT4SERVICE");
+        //CurrentState = STATE_WAITING;
+        Serial.println("CurrentState = STATE_WAITING");
         Delete2Firebase();
+        //deleteService();
       }
       FirebaseObject object = Firebase.get("0f0f1366-75d7-4a06-bb37-f03efd6ad06a/RunningQueue/5ccf7f006c6c");
       String& json = (String&)object;
       if (json.equals("null")) {
         Serial.println("Deleted");
-        CurrentState = STATEWAIT4SERVICE;
-        Serial.println("CurrentState = STATEWAIT4SERVICE");
+        CurrentState = STATE_WAITING;
+        Serial.println("CurrentState = STATE_WAITING");
         deleteService(); // led fade red to blue
+        Delete = false;
       } else {
-        Serial.println("exists");
+        //Serial.println("exists");
       }
     break;
-      /*Serial.println("JSON: " + json);
-      if (json.equals("null")) {
-        Serial.println("Json is string literal null");
-      } else if (json == NULL) {
-        Serial.println("Json is actually null");
-      }*/
-      
-      /*if (Firebase.get("b9da2970-e73c-4700-a166-5d4de4955e1b/RunningQueue/5ccf7f006c6c") == NULL) {
-          Serial.println("Order was deleted from firebase"); 
-          CurrentState = STATEWAIT4SERVICE;
-          Serial.println("CurrentState = STATEWAIT4SERVICE");
-          fadered2blue();
-          delay(1000);
-          setRingColor(strip.Color(0,100,0));
-      }*/
   }
 }
 /*---------------------------- Event Checker ---------------------------*/
 static void Check4Add(void){
-  if ((millis() - LastAccelSampleTime) < AccelSampleTimeLength){
+  if ((millis() - LastAccelSampleTime) < TIME_ACCEL_SAMPLE){
     if (accel.available())
     {
-      // First, use accel.read() to read the new variables:
       accel.read();
-      Accelz = accel.cz;
-      if (Accelz > AccelThreshold){
-        AccelCounter++;
-      }
-    }
-  }else{
-    LastAccelSampleTime = millis();
-    //Serial.print("The total coutner is: ");
-    //Serial.println(AccelCounter);
-    if (AccelCounter > AccelCounterThreshold){
-      if (counterflipped % 2 == 0) {
+      float val = accel.cx + accel.cy + accel.cz;
+      Serial.print("x: ");
+      Serial.print(accel.cx);
+      Serial.print(", y: ");
+      Serial.print(accel.cy);
+      Serial.print(", z: ");
+      Serial.println(accel.cz);
+      if (val > 8) {
+        Serial.print(" >>>> Greater than 8, val: " );
+        Serial.println(val);
+        delay(1000);
         Add = true;
-      } else {
-        Delete = true;
       }
-      counterflipped++;
-    }else{
-      Add = false;
     }
-    AccelCounter = 0;
+  } else {
+    LastAccelSampleTime = millis();
+    Add = false;
   }
 }
 
 static void Check4Delete(void){
-  if (digitalRead(ButtonPin) == HIGH){
+  if ((digitalRead(ButtonPin) == HIGH)) {
     CurrentButtonPinStatus = true;
-    //Serial.println("ButtonPin is high"); 
+    Serial.println("ButtonPin is high"); 
   }else{
     CurrentButtonPinStatus = false;
-    //Serial.println("ButtonPin is low"); 
+    Serial.println("ButtonPin is low"); 
   }
-  if ((false == LastButtonPinStatus) && (true == CurrentButtonPinStatus)){
-    Delete = true;
-    //Delete2Firebase();
-    Serial.println("Delete value from firebase"); 
-  }else{
-    Delete = false;
+  if (CurrentButtonPinStatus != LastButtonPinStatus) { 
+    if ((true == CurrentButtonPinStatus) && (false == Debouncing_Flag)) { // if legit Button Press
+      Delete = true;
+      Debouncing_Flag = true; // Debouncing flag set, ignore subsequent button presses for duration of debounce timer
+      Serial.println("Delete Button Pressed");
+      LastTimeDebounce = millis();
+    } else { // fake button press
+      // Do nothing 
+    }
   }
   LastButtonPinStatus = CurrentButtonPinStatus;
+}
+
+static void CheckDebounceTimerExpired() {
+  if (millis() - LastTimeDebounce > TIME_DEBOUNCE) { // 
+    Debouncing_Flag = false;
+  }
 }
 
 
@@ -261,12 +231,10 @@ static void LEDInit(void) {
 
 static void Add2Firebase(void){
   Firebase.set("0f0f1366-75d7-4a06-bb37-f03efd6ad06a/RunningQueue/5ccf7f006c6c/MACid", "5ccf7f006c6c");
-  //LEDService();
 }
 
 static void Delete2Firebase(void){
   Firebase.remove("0f0f1366-75d7-4a06-bb37-f03efd6ad06a/RunningQueue/5ccf7f006c6c");
-  deleteService();
 }
 
 static void ReadMACID(void){
@@ -284,27 +252,20 @@ static void deleteService(void) {
   setRingColor(off);
 }
 static void LEDService(void) {
-  setRingColor(blue);
-  delay(1000);
-  fadeblue2red();   // fade to red
-  setRingColor(red);
-  delay(1000);
-  flash(); // order ready flash red
-  setRingColor(red);
-  delay(1000);
-  //fadered2blue(); // fade to blue
-}
-
-
-void setRingColor(uint32_t c) {
-  for(uint16_t i=0; i<strip.numPixels(); i++) {
-    strip.setPixelColor(i, c);
-  }
-  strip.show();
+//  setRingColor(blue);
+//  delay(1000);
+//  fadeblue2red();   // fade to red
+//  setRingColor(red);
+//  delay(1000);
+//  flash(); // order ready flash red
+//  setRingColor(red);
+//  delay(1000);
+//  //fadered2blue(); // fade to blue
+    setRingColor(red);
 }
 
 void flash(void) {
-  for (uint16_t i = 0; i < 10; i++) {
+  for (uint16_t i = 0; i < 5; i++) {
     setRingColor(red_high);
     delay(200);
     setRingColor(red_low);
@@ -334,30 +295,10 @@ void fadered2blue(void) {
    }  
 }
 
-// fade_up - fade up to the given color
-void fade_up(int num_steps, int wait, int R, int G, int B) {
-   uint16_t i, j;
-   
-   for (i=0; i<num_steps; i++) {
-      for(j=0; j<strip.numPixels(); j++) {
-         strip.setPixelColor(j, strip.Color(R * i / num_steps, G * i / num_steps, B * i / num_steps));
-      }  
-   strip.show();
-   delay(wait);
-   }  
-} // fade_up
-
-
-void fade_down(int num_steps, int wait, int R, int G, int B) {
-   uint16_t i, j;
-   
-   for (i=100; i>1; i--) {
-      for(j=0; j<strip.numPixels(); j++) {
-         strip.setPixelColor(j, strip.Color(R * i / num_steps, G * i / num_steps, B * i / num_steps));
-      }  
-   strip.show();
-   delay(wait);
-   }  
-} // fade_up
-
+void setRingColor(uint32_t c) {
+  for(uint16_t i=0; i<strip.numPixels(); i++) {
+    strip.setPixelColor(i, c);
+  }
+  strip.show();
+}
 
