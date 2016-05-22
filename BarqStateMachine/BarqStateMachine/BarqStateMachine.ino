@@ -41,8 +41,8 @@
 #define AccelSampleTimeLength 500 // 2000 millisecond
 #define AccelCounterThreshold 50
 #define AccelThreshold 2.5
-#define MicrophoneMax 0.87
-#define MicrophoneMin 0.47
+#define MicrophoneMax 0.9
+#define MicrophoneMin 0.0
 #define ColorMax 100
 #define ColorMin 0
 
@@ -110,14 +110,15 @@ double MicrophonValue = 0.00;
 char MicrophonePin = A0;
 
 // for LED
-uint32_t off = strip.Color(0,0,0);
-uint32_t blue = strip.Color(0,0,100);
-uint32_t blue_low = strip.Color(0,0,30);
-uint32_t red = strip.Color(100,0,0);
-uint32_t green = strip.Color(0,100,0);
-uint32_t red_high = strip.Color(255,0,0);
-uint32_t red_low = strip.Color(50,0,0);
-uint32_t CalColor;
+static uint32_t off = strip.Color(0,0,0);
+static uint32_t blue = strip.Color(0,0,100);
+static uint32_t blue_low = strip.Color(0,0,30);
+static uint32_t red = strip.Color(100,0,0);
+static uint32_t green = strip.Color(0,100,0);
+static uint32_t red_high = strip.Color(255,0,0);
+static uint32_t red_low = strip.Color(50,0,0);
+static uint32_t CalColor;
+static bool LEDServiceFlag = false;
 /*------------------------------ Module Code ------------------------------*/
 /****************************************************************************/
 
@@ -147,6 +148,7 @@ void loop() {
   switch (CurrentState) {
     case STATEWAIT4SERVICE:
       if (true == Add){
+        LEDServiceFlag = true;
         Delete = false;
         CurrentState = STATEONQUEUE;
         Serial.println("CurrentState = STATEONQUEUE");
@@ -292,14 +294,13 @@ static void deleteService(void) {
   fadered2blue();
   delay(1000);
   setRingColor(off);
+  LEDServiceFlag = false;
 }
 
 static void LEDService(void) {
-  if (Add == true){
+  if (LEDServiceFlag == true){
     MicrophonValue = (analogRead(MicrophonePin)/1024.00);
-    CalColor = (uint32_t)(((ColorMax - ColorMin)/(MicrophoneMax - MicrophoneMin))*(MicrophonValue-MicrophoneMin));
-    Serial.print("CalColor analog value is: ");
-    Serial.println(CalColor);
+    CalColor = (uint32_t)((((double)ColorMax - (double)ColorMin)/(MicrophoneMax - MicrophoneMin))*(MicrophonValue-MicrophoneMin));
     if (CalColor > 100)
     {
       CalColor = 100;
@@ -308,7 +309,12 @@ static void LEDService(void) {
     {
       CalColor = 0;
     }
+    Serial.print("Microphone analog value is: ");
+    Serial.println(MicrophonValue);   
+    Serial.print("CalColor analog value is: ");
+    Serial.println(CalColor);
     setRingColor(strip.Color(CalColor,0,(100-CalColor)));
+    delay(100);
   }
 }
 
