@@ -313,22 +313,12 @@ static void LEDService(void) {
     }
     strip.show();
     j_Cycle += 75;
-    Serial.print("LEDService j_cycle is: ");
-    Serial.println(j_Cycle);
+    //Serial.print("LEDService j_cycle is: ");
+    //Serial.println(j_Cycle);
     LastLEDSampleTime = millis();
     }
   }
 }
-
-//  setRingColor(blue);
-//  delay(1000);
-//  fadeblue2red();   // fade to red
-//  setRingColor(red);
-//  delay(1000);
-//  flash(); // order ready flash red
-//  setRingColor(red);
-//  delay(1000);
-//  //fadered2blue(); // fade to blue
 
 void setRingColor(uint32_t c) {
   for(uint16_t i=0; i<strip.numPixels(); i++) {
@@ -337,13 +327,42 @@ void setRingColor(uint32_t c) {
   strip.show();
 }
 
-void flash(void) {
-  for (uint16_t i = 0; i < 5; i++) {
-    setRingColor(red_high);
-    delay(200);
-    setRingColor(red_low);
-    delay(200);
+void FlashRedService(void) {
+  if ((millis() - LastFlashRed) > TIME_FLASHRED)
+  {
+    if (FlashRedCounter % 2 == 0)
+    {
+      setRingColor(strip.Color(255,0,0));
+    }
+    else 
+    {
+      setRingColor(strip.Color(50,0,0));
+    }
+    FlashRedCounter++;
+    LastFlashRed = millis();
   }
+}
+
+void fadepink2red(void) {
+  uint16_t i, j;
+   for (i=0; i<127; i++) {
+      for(j=0; j<strip.numPixels(); j++) {
+         strip.setPixelColor(j, strip.Color(127+i, 0, 127-i)); // R upto 100 is Red
+      }  
+   strip.show();
+   delay(10);
+   }  
+}
+
+void fadeblue2pink(void) {
+  uint16_t i, j;
+   for (i=0; i<127; i++) {
+      for(j=0; j<strip.numPixels(); j++) {
+         strip.setPixelColor(j, strip.Color(0+i, 0, 255-i)); // R upto 100 is Red
+      }  
+   strip.show();
+   delay(10);
+   }  
 }
 
 void fadeblue2red(void) {
@@ -368,6 +387,24 @@ void fadered2blue(void) {
    }  
 }
 
+void fadeblue2blue(void) {
+  uint16_t i, j;
+   for (i=0; i<245; i++) {
+      for(j=0; j<strip.numPixels(); j++) {
+         strip.setPixelColor(j, strip.Color(0, 0, 10+i)); // B upto 100 is Blue
+      }  
+   strip.show();
+   delay(10);
+   }  
+}
+
+void Set2Blue(void) {
+   setRingColor(strip.Color(0,0,255));
+}
+
+void Set2Pink(void) {
+   setRingColor(strip.Color(127,0,127));
+}
 
 // Input a value 0 to 255 to get a color value.
 // The colours are a transition r - g - b - back to r.
