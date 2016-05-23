@@ -209,7 +209,7 @@ static void CheckDebounceTimerExpired() {
 
 static void CheckDeletefromTablet(void)
 {
-  FirebaseObject object = Firebase.get("0f0f1366-75d7-4a06-bb37-f03efd6ad06a/RunningQueue/5ccf7f006c6c");
+  FirebaseObject object = Firebase.get("62548d08-ca1c-4685-b49e-7812d14dc96c/RunningQueue/5ccf7f006c6c");
   String& json = (String&)object;
   if (json.equals("null")) {
     Serial.println("Deleted");
@@ -280,11 +280,11 @@ static void LEDInit(void) {
 }
 
 static void Add2Firebase(void){
-  Firebase.set("0f0f1366-75d7-4a06-bb37-f03efd6ad06a/RunningQueue/5ccf7f006c6c/MACid", "5ccf7f006c6c");
+  Firebase.set("62548d08-ca1c-4685-b49e-7812d14dc96c/RunningQueue/5ccf7f006c6c/MACid", "5ccf7f006c6c");
 }
 
 static void Delete2Firebase(void){
-  Firebase.remove("0f0f1366-75d7-4a06-bb37-f03efd6ad06a/RunningQueue/5ccf7f006c6c");
+  Firebase.remove("62548d08-ca1c-4685-b49e-7812d14dc96c/RunningQueue/5ccf7f006c6c");
 }
 
 static void ReadMACID(void){
