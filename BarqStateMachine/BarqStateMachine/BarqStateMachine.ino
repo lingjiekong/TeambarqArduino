@@ -20,18 +20,11 @@
 #define ButtonPin 12 // Delete Button
 #define DebugPin 15 // Blue Init Debug LED
 
-#define AccelSampleTimeLength 100 // 2000 millisecond
-#define AccelCounterThreshold 50
+#define AccelSampleTimeLength 2000 // 2000 millisecond
+#define AccelCounterThreshold 1000
 #define AccelThreshold 2.5
-<<<<<<< HEAD
-#define MicrophoneMax 0.9
-#define MicrophoneMin 0.0
-#define ColorMax 100
-#define ColorMin 0
-=======
 #define TIME_DEBOUNCE 1000
-#define TIME_ACCEL_SAMPLE 500
->>>>>>> 3f192a2b5cd62dfc727fcfb89121b1555b9f016d
+#define TIME_LEDUPDATE 500
 
 // Modifed NeoPixel sample for the holiday craft project
 // Parameter 1 = number of pixels in strip
@@ -48,7 +41,8 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(16, LEDPin, NEO_GRB + NEO_KHZ800);
 // Event Checkers
 static void Check4Add(void);
 static void Check4Delete(void);
-static void CheckDebounceTimerExpired();
+static void CheckDebounceTimerExpired(void);
+static void CheckDeletefromTablet(void);
 
 // Functions
 static void WifiInit(void);
@@ -67,22 +61,20 @@ static void setRingColor(uint32_t c);
 static void flash(void);
 static void fadered2blue(void);
 static void fadeblue2red(void);
+uint32_t Wheel(byte WheelPos);
 
 /*---------------------------- Module Variables ---------------------------*/
-<<<<<<< HEAD
 // everybody needs a state variable, you may need others as well.
 // type of state variable should match that of enum in header file
-typedef enum {STATEWAIT4SERVICE, STATEONQUEUE} BarqState_t;
 
 // for Accel
-=======
-
 typedef enum {STATE_WAITING, STATE_IN_QUEUE} BarqState_t;
->>>>>>> 3f192a2b5cd62dfc727fcfb89121b1555b9f016d
 BarqState_t CurrentState;
 MMA8452Q accel;
 static unsigned long LastAccelSampleTime;
+static unsigned long LastLEDSampleTime;
 static unsigned long LastTimeDebounce;
+static unsigned long LastTime;
 static bool Add = false;
 static bool Delete = false;
 static bool Debouncing_Flag = false;
@@ -94,10 +86,6 @@ static uint8_t MAC_array[6];
 static char MAC_char[18];
 static String MAC_string;
 
-// for Microphone
-double MicrophonValue = 0.00;
-char MicrophonePin = A0;
-
 // for LED
 static uint32_t off = strip.Color(0,0,0);
 static uint32_t blue = strip.Color(0,0,100);
@@ -106,8 +94,10 @@ static uint32_t red = strip.Color(100,0,0);
 static uint32_t green = strip.Color(0,100,0);
 static uint32_t red_high = strip.Color(255,0,0);
 static uint32_t red_low = strip.Color(50,0,0);
-static uint32_t CalColor;
 static bool LEDServiceFlag = false;
+static uint16_t i_LED = 0;
+static uint16_t j_Cycle = 0;
+
 /*------------------------------ Module Code ------------------------------*/
 void setup() {
   // put your setup code here, to run once:
@@ -125,15 +115,14 @@ void setup() {
 
 /*------------------------------ Main Loop ------------------------------*/
 void loop() {
-  
-  // Event Checkers
+  //Serial.print("Time to run through the framework is: ");
+  //Serial.println(millis() - LastTime);
+  //LastTime = millis();
+  // Event Checkers for all state
   Check4Add();
   Check4Delete();
   CheckDebounceTimerExpired();
-
-  // Continuous Service
-  LEDService();
-
+    
   // State Machine
   switch (CurrentState) {
     case STATE_WAITING:
@@ -143,8 +132,9 @@ void loop() {
         CurrentState = STATE_IN_QUEUE;
         Serial.println("CurrentState = STATE_IN_QUEUE");
         Add2Firebase();
-        //LEDService();
       }
+      // Event Checkers for STATE_WAITING State
+      
     break;
 
     case STATE_IN_QUEUE:
@@ -152,58 +142,54 @@ void loop() {
         //CurrentState = STATE_WAITING;
         Serial.println("CurrentState = STATE_WAITING");
         Delete2Firebase();
-        //deleteService();
       }
-      FirebaseObject object = Firebase.get("0f0f1366-75d7-4a06-bb37-f03efd6ad06a/RunningQueue/5ccf7f006c6c");
-      String& json = (String&)object;
-      if (json.equals("null")) {
-        Serial.println("Deleted");
-        CurrentState = STATE_WAITING;
-        Serial.println("CurrentState = STATE_WAITING");
-        deleteService(); // led fade red to blue
-        Delete = false;
-      } else {
-        //Serial.println("exists");
-      }
+      
+      // Event Checkers for STATE_IN_QUEUE State
+      CheckDeletefromTablet();
+      
+      // Continuous Service
+      LEDService();
     break;
   }
 }
+
+
 /*---------------------------- Event Checker ---------------------------*/
 static void Check4Add(void){
-  if ((millis() - LastAccelSampleTime) < TIME_ACCEL_SAMPLE){
+  if ((millis() - LastAccelSampleTime) < AccelSampleTimeLength){
     if (accel.available())
     {
+      // First, use accel.read() to read the new variables:
       accel.read();
-      float val = accel.cx + accel.cy + accel.cz;
-      Serial.print("x: ");
-      Serial.print(accel.cx);
-      Serial.print(", y: ");
-      Serial.print(accel.cy);
-      Serial.print(", z: ");
-      Serial.println(accel.cz);
-      if (val > 8) {
-        Serial.print(" >>>> Greater than 8, val: " );
-        Serial.println(val);
-        delay(1000);
-        Add = true;
+      Accelz = accel.cz;
+      if (Accelz > AccelThreshold){
+        AccelCounter++;
       }
     }
-  } else {
+  }else{
     LastAccelSampleTime = millis();
-    Add = false;
+    //Serial.print("The total coutner is: ");
+    //Serial.println(AccelCounter);
+    if (AccelCounter > AccelCounterThreshold){
+      Add = true;
+    }else{
+      Add = false;
+    }
+    AccelCounter = 0;
   }
 }
 
 static void Check4Delete(void){
   if ((digitalRead(ButtonPin) == HIGH)) {
     CurrentButtonPinStatus = true;
-    Serial.println("ButtonPin is high"); 
+    //Serial.println("ButtonPin is high"); 
   }else{
     CurrentButtonPinStatus = false;
-    Serial.println("ButtonPin is low"); 
+    //Serial.println("ButtonPin is low"); 
   }
   if (CurrentButtonPinStatus != LastButtonPinStatus) { 
     if ((true == CurrentButtonPinStatus) && (false == Debouncing_Flag)) { // if legit Button Press
+      deleteService();
       Delete = true;
       Debouncing_Flag = true; // Debouncing flag set, ignore subsequent button presses for duration of debounce timer
       Serial.println("Delete Button Pressed");
@@ -216,11 +202,50 @@ static void Check4Delete(void){
 }
 
 static void CheckDebounceTimerExpired() {
-  if (millis() - LastTimeDebounce > TIME_DEBOUNCE) { // 
+  if (millis() - LastTimeDebounce > TIME_DEBOUNCE) {
     Debouncing_Flag = false;
   }
 }
 
+static void CheckDeletefromTablet(void)
+{
+  FirebaseObject object = Firebase.get("0f0f1366-75d7-4a06-bb37-f03efd6ad06a/RunningQueue/5ccf7f006c6c");
+  String& json = (String&)object;
+  if (json.equals("null")) {
+    Serial.println("Deleted");
+    CurrentState = STATE_WAITING;
+    Serial.println("CurrentState = STATE_WAITING");
+    deleteService(); // led fade red to blue
+    Delete = false;
+  } else {
+    //Serial.println("exists");
+  }
+}
+
+//static void Check4Add(void){
+//  if ((millis() - LastAccelSampleTime) < TIME_ACCEL_SAMPLE){
+//    if (accel.available())
+//    {
+//      accel.read();
+//      float val = accel.cx + accel.cy + accel.cz;
+//      Serial.print("x: ");
+//      Serial.print(accel.cx);
+//      Serial.print(", y: ");
+//      Serial.print(accel.cy);
+//      Serial.print(", z: ");
+//      Serial.println(accel.cz);
+//      if (val > 8) {
+//        Serial.print(" >>>> Greater than 8, val: " );
+//        Serial.println(val);
+//        delay(1000);
+//        Add = true;
+//      }
+//    }
+//  } else {
+//    LastAccelSampleTime = millis();
+//    Add = false;
+//  }
+//}
 
 /*---------------------------- Private Function ---------------------------*/
 static void WifiInit(void){
@@ -272,6 +297,7 @@ static void ReadMACID(void){
 }
 
 static void deleteService(void) {
+  j_Cycle = 0;
   fadered2blue();
   delay(1000);
   setRingColor(off);
@@ -279,29 +305,21 @@ static void deleteService(void) {
 }
 
 static void LEDService(void) {
-<<<<<<< HEAD
   if (LEDServiceFlag == true){
-    MicrophonValue = (analogRead(MicrophonePin)/1024.00);
-    CalColor = (uint32_t)((((double)ColorMax - (double)ColorMin)/(MicrophoneMax - MicrophoneMin))*(MicrophonValue-MicrophoneMin));
-    if (CalColor > 100)
-    {
-      CalColor = 100;
+    if ((millis() - LastLEDSampleTime) > TIME_LEDUPDATE)
+    {        
+    for(i_LED = 0; i_LED< strip.numPixels(); i_LED++) {
+      strip.setPixelColor(i_LED, Wheel(((i_LED * 256 / strip.numPixels()) + j_Cycle) & 255));
     }
-    if (CalColor < 0)
-    {
-      CalColor = 0;
+    strip.show();
+    j_Cycle += 75;
+    Serial.print("LEDService j_cycle is: ");
+    Serial.println(j_Cycle);
+    LastLEDSampleTime = millis();
     }
-    Serial.print("Microphone analog value is: ");
-    Serial.println(MicrophonValue);   
-    Serial.print("CalColor analog value is: ");
-    Serial.println(CalColor);
-    setRingColor(strip.Color(CalColor,0,(100-CalColor)));
-    delay(100);
   }
 }
 
-=======
->>>>>>> 3f192a2b5cd62dfc727fcfb89121b1555b9f016d
 //  setRingColor(blue);
 //  delay(1000);
 //  fadeblue2red();   // fade to red
@@ -311,17 +329,12 @@ static void LEDService(void) {
 //  setRingColor(red);
 //  delay(1000);
 //  //fadered2blue(); // fade to blue
-<<<<<<< HEAD
-
 
 void setRingColor(uint32_t c) {
   for(uint16_t i=0; i<strip.numPixels(); i++) {
     strip.setPixelColor(i, c);
   }
   strip.show();
-=======
-    setRingColor(red);
->>>>>>> 3f192a2b5cd62dfc727fcfb89121b1555b9f016d
 }
 
 void flash(void) {
@@ -355,41 +368,19 @@ void fadered2blue(void) {
    }  
 }
 
-<<<<<<< HEAD
 
-
-// fade_up - fade up to the given color
-//void fade_up(int num_steps, int wait, int R, int G, int B) {
-//   uint16_t i, j;
-//   
-//   for (i=0; i<num_steps; i++) {
-//      for(j=0; j<strip.numPixels(); j++) {
-//         strip.setPixelColor(j, strip.Color(R * i / num_steps, G * i / num_steps, B * i / num_steps));
-//      }  
-//   strip.show();
-//   delay(wait);
-//   }  
-//} // fade_up
-
-
-//void fade_down(int num_steps, int wait, int R, int G, int B) {
-//   uint16_t i, j;
-//   
-//   for (i=100; i>1; i--) {
-//      for(j=0; j<strip.numPixels(); j++) {
-//         strip.setPixelColor(j, strip.Color(R * i / num_steps, G * i / num_steps, B * i / num_steps));
-//      }  
-//   strip.show();
-//   delay(wait);
-//   }  
-//} // fade_up
-
-=======
-void setRingColor(uint32_t c) {
-  for(uint16_t i=0; i<strip.numPixels(); i++) {
-    strip.setPixelColor(i, c);
+// Input a value 0 to 255 to get a color value.
+// The colours are a transition r - g - b - back to r.
+uint32_t Wheel(byte WheelPos) {
+  WheelPos = 255 - WheelPos;
+  if(WheelPos < 85) {
+    return strip.Color(255 - WheelPos * 3, 0, WheelPos * 3);
   }
-  strip.show();
+  if(WheelPos < 170) {
+    WheelPos -= 85;
+    return strip.Color(0, WheelPos * 3, 255 - WheelPos * 3);
+  }
+  WheelPos -= 170;
+  return strip.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
 }
->>>>>>> 3f192a2b5cd62dfc727fcfb89121b1555b9f016d
 
