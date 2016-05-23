@@ -20,11 +20,12 @@
 #define ButtonPin 12 // Delete Button
 #define DebugPin 15 // Blue Init Debug LED
 
-#define AccelSampleTimeLength 2000 // 2000 millisecond
-#define AccelCounterThreshold 1000
+#define AccelSampleTimeLength 1000 // 2000 millisecond
+#define AccelCounterThreshold 100
 #define AccelThreshold 2.5
 #define TIME_DEBOUNCE 1000
 #define TIME_LEDUPDATE 500
+#define TIME_FLASHRED 100
 
 // Modifed NeoPixel sample for the holiday craft project
 // Parameter 1 = number of pixels in strip
@@ -43,6 +44,8 @@ static void Check4Add(void);
 static void Check4Delete(void);
 static void CheckDebounceTimerExpired(void);
 static void CheckDeletefromTablet(void);
+static void CheckQueuePosition(void);
+
 
 // Functions
 static void WifiInit(void);
@@ -58,9 +61,14 @@ static void LEDInit(void);
 static void LEDService(void);
 static void deleteService(void);
 static void setRingColor(uint32_t c);
-static void flash(void);
+static void FlashRedService(void);
 static void fadered2blue(void);
 static void fadeblue2red(void);
+static void fadeblue2pink(void);
+static void fadepink2red(void);
+static void fadeblue2blue(void);
+static void Set2Blue(void);
+static void Set2Pink(void);
 uint32_t Wheel(byte WheelPos);
 
 /*---------------------------- Module Variables ---------------------------*/
@@ -75,6 +83,7 @@ static unsigned long LastAccelSampleTime;
 static unsigned long LastLEDSampleTime;
 static unsigned long LastTimeDebounce;
 static unsigned long LastTime;
+static unsigned long LastFlashRed;
 static bool Add = false;
 static bool Delete = false;
 static bool Debouncing_Flag = false;
@@ -94,10 +103,12 @@ static uint32_t red = strip.Color(100,0,0);
 static uint32_t green = strip.Color(0,100,0);
 static uint32_t red_high = strip.Color(255,0,0);
 static uint32_t red_low = strip.Color(50,0,0);
-static bool LEDServiceFlag = false;
+static bool LEDServiceFlag = true;
 static uint16_t i_LED = 0;
 static uint16_t j_Cycle = 0;
-
+static uint8_t FlashRedCounter = 0;
+static uint8_t CurrentQueuePos = 0;
+static uint8_t LastQueuePos = 0;
 /*------------------------------ Module Code ------------------------------*/
 void setup() {
   // put your setup code here, to run once:
@@ -118,37 +129,37 @@ void loop() {
   //Serial.print("Time to run through the framework is: ");
   //Serial.println(millis() - LastTime);
   //LastTime = millis();
-  // Event Checkers for all state
-  Check4Add();
-  Check4Delete();
-  CheckDebounceTimerExpired();
-    
+  
   // State Machine
   switch (CurrentState) {
     case STATE_WAITING:
+     // Event Checkers
+      Check4Add();
       if (true == Add){
-        LEDServiceFlag = true;
+        LEDServiceFlag = false;
         Delete = false;
         CurrentState = STATE_IN_QUEUE;
         Serial.println("CurrentState = STATE_IN_QUEUE");
         Add2Firebase();
+        j_Cycle = 0;
       }
+      // Continuous Service
+      LEDService();
       // Event Checkers for STATE_WAITING State
-      
     break;
 
     case STATE_IN_QUEUE:
-      if (true == Delete){
-        //CurrentState = STATE_WAITING;
-        Serial.println("CurrentState = STATE_WAITING");
-        Delete2Firebase();
-      }
-      
       // Event Checkers for STATE_IN_QUEUE State
       CheckDeletefromTablet();
-      
-      // Continuous Service
-      LEDService();
+      CheckQueuePosition();
+      Check4Delete();
+      CheckDebounceTimerExpired();
+      if (true == Delete){
+        CurrentState = STATE_WAITING;
+        Serial.println("CurrentState = STATE_WAITING");
+        Delete2Firebase();
+        deleteService();
+      }
     break;
   }
 }
@@ -187,9 +198,8 @@ static void Check4Delete(void){
     CurrentButtonPinStatus = false;
     //Serial.println("ButtonPin is low"); 
   }
-  if (CurrentButtonPinStatus != LastButtonPinStatus) { 
+  //if (CurrentButtonPinStatus != LastButtonPinStatus) { 
     if ((true == CurrentButtonPinStatus) && (false == Debouncing_Flag)) { // if legit Button Press
-      deleteService();
       Delete = true;
       Debouncing_Flag = true; // Debouncing flag set, ignore subsequent button presses for duration of debounce timer
       Serial.println("Delete Button Pressed");
@@ -197,8 +207,8 @@ static void Check4Delete(void){
     } else { // fake button press
       // Do nothing 
     }
-  }
-  LastButtonPinStatus = CurrentButtonPinStatus;
+  //}
+  //LastButtonPinStatus = CurrentButtonPinStatus;
 }
 
 static void CheckDebounceTimerExpired() {
@@ -209,43 +219,48 @@ static void CheckDebounceTimerExpired() {
 
 static void CheckDeletefromTablet(void)
 {
-  FirebaseObject object = Firebase.get("62548d08-ca1c-4685-b49e-7812d14dc96c/RunningQueue/5ccf7f006c6c");
+  FirebaseObject object = Firebase.get("0f0f1366-75d7-4a06-bb37-f03efd6ad06a/RunningQueue/5ccf7f006c6c");
   String& json = (String&)object;
   if (json.equals("null")) {
     Serial.println("Deleted");
-    CurrentState = STATE_WAITING;
-    Serial.println("CurrentState = STATE_WAITING");
-    deleteService(); // led fade red to blue
-    Delete = false;
+    Delete = true;
   } else {
     //Serial.println("exists");
   }
 }
 
-//static void Check4Add(void){
-//  if ((millis() - LastAccelSampleTime) < TIME_ACCEL_SAMPLE){
-//    if (accel.available())
-//    {
-//      accel.read();
-//      float val = accel.cx + accel.cy + accel.cz;
-//      Serial.print("x: ");
-//      Serial.print(accel.cx);
-//      Serial.print(", y: ");
-//      Serial.print(accel.cy);
-//      Serial.print(", z: ");
-//      Serial.println(accel.cz);
-//      if (val > 8) {
-//        Serial.print(" >>>> Greater than 8, val: " );
-//        Serial.println(val);
-//        delay(1000);
-//        Add = true;
-//      }
-//    }
-//  } else {
-//    LastAccelSampleTime = millis();
-//    Add = false;
-//  }
-//}
+static void CheckQueuePosition(void)
+{
+  // Queue Position is 1
+  FirebaseObject object = Firebase.get("0f0f1366-75d7-4a06-bb37-f03efd6ad06a/RunningQueue/5ccf7f006c6c/QueuePosition");
+  CurrentQueuePos = (int)object;
+  //Serial.print("QueuePosition is: ");
+  //Serial.println(QueuePos);
+  if (CurrentQueuePos != LastQueuePos){
+    if (1 == CurrentQueuePos){
+      LEDServiceFlag = false;
+      //Serial.println("Color is Pink");
+      fadepink2red();
+    }
+    else if (2 == CurrentQueuePos){
+      LEDServiceFlag = false;
+      //Serial.println("Color is Pink");
+      fadeblue2pink();
+    }
+    else{
+      LEDServiceFlag = false;
+      //Serial.println("Color is Blue");
+      fadeblue2blue();
+    }
+    LastQueuePos = CurrentQueuePos;
+  }
+  if (1 == CurrentQueuePos)
+  {
+    LEDServiceFlag = false;
+    FlashRedService();
+    //Serial.println("Color is flashred");
+  }
+}
 
 /*---------------------------- Private Function ---------------------------*/
 static void WifiInit(void){
@@ -280,11 +295,12 @@ static void LEDInit(void) {
 }
 
 static void Add2Firebase(void){
-  Firebase.set("62548d08-ca1c-4685-b49e-7812d14dc96c/RunningQueue/5ccf7f006c6c/MACid", "5ccf7f006c6c");
+  Firebase.set("0f0f1366-75d7-4a06-bb37-f03efd6ad06a/RunningQueue/5ccf7f006c6c/MACid", "5ccf7f006c6c");
+  Firebase.set("0f0f1366-75d7-4a06-bb37-f03efd6ad06a/RunningQueue/5ccf7f006c6c/QueuePosition", 5);
 }
 
 static void Delete2Firebase(void){
-  Firebase.remove("62548d08-ca1c-4685-b49e-7812d14dc96c/RunningQueue/5ccf7f006c6c");
+  Firebase.remove("0f0f1366-75d7-4a06-bb37-f03efd6ad06a/RunningQueue/5ccf7f006c6c");
 }
 
 static void ReadMACID(void){
@@ -297,11 +313,11 @@ static void ReadMACID(void){
 }
 
 static void deleteService(void) {
-  j_Cycle = 0;
-  fadered2blue();
-  delay(1000);
-  setRingColor(off);
-  LEDServiceFlag = false;
+  FlashRedCounter = 0;
+  LEDServiceFlag = true;
+//  fadered2blue();
+//  delay(1000);
+//  setRingColor(off);
 }
 
 static void LEDService(void) {
@@ -420,4 +436,3 @@ uint32_t Wheel(byte WheelPos) {
   WheelPos -= 170;
   return strip.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
 }
-
