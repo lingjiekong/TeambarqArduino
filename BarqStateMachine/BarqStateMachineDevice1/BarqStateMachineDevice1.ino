@@ -26,8 +26,8 @@
 #define TIME_DEBOUNCE 1000
 #define TIME_LEDUPDATE 500
 #define TIME_FLASHRED 100
-#define AccelZCounterThreshold 10
-#define AccelZRangeThreshold 1.5
+#define AccelZCounterThreshold 7
+#define AccelZRangeThreshold 1
 
 // Modifed NeoPixel sample for the holiday craft project
 // Parameter 1 = number of pixels in strip
