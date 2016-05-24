@@ -26,6 +26,8 @@
 #define TIME_DEBOUNCE 1000
 #define TIME_LEDUPDATE 500
 #define TIME_FLASHRED 100
+#define AccelZCounterThreshold 10
+#define AccelZRangeThreshold 1.5
 
 // Modifed NeoPixel sample for the holiday craft project
 // Parameter 1 = number of pixels in strip
@@ -94,6 +96,12 @@ int AccelCounter = 0;
 static uint8_t MAC_array[6];
 static char MAC_char[18];
 static String MAC_string;
+static uint8_t AccelZCounter;
+static double AccelZ;
+static double AccelZMax = 0;
+static double AccelZMin = 4;
+static double AccelZRange;
+static uint8_t AccelZSample = 0;
 
 // for LED
 static uint32_t off = strip.Color(0,0,0);
@@ -166,29 +174,79 @@ void loop() {
 
 
 /*---------------------------- Event Checker ---------------------------*/
-static void Check4Add(void){
-  if ((millis() - LastAccelSampleTime) < AccelSampleTimeLength){
-    if (accel.available())
-    {
-      // First, use accel.read() to read the new variables:
+//static void Check4Add(void){
+//  if ((millis() - LastAccelSampleTime) < AccelSampleTimeLength){
+//    if (accel.available())
+//    {
+//      // First, use accel.read() to read the new variables:
+//      accel.read();
+//      Accelz = accel.cz;
+//      if (Accelz > AccelThreshold){
+//        AccelCounter++;
+//      }
+//    }
+//  }else{
+//    LastAccelSampleTime = millis();
+//    //Serial.print("The total coutner is: ");
+//    //Serial.println(AccelCounter);
+//    if (AccelCounter > AccelCounterThreshold){
+//      Add = true;
+//    }else{
+//      Add = false;
+//    }
+//    AccelCounter = 0;
+//  }
+//}
+
+static void Check4Add(void)
+{
+  if ((millis() - LastAccelSampleTime) < AccelSampleTimeLength)
+  {
+    if(accel.available()){
       accel.read();
-      Accelz = accel.cz;
-      if (Accelz > AccelThreshold){
-        AccelCounter++;
+      AccelZ = accel.cz;
+      //Serial.print("AccelZ value is: ");
+      //Serial.println(AccelZ);
+      if (AccelZ > AccelZMax)
+      {
+        AccelZMax = AccelZ;
+      }
+      if (AccelZ < AccelZMin)
+      {
+        AccelZMin = AccelZ;
+      }
+      AccelZSample++;
+      if (AccelZSample > 10){
+        AccelZRange = (AccelZMax - AccelZMin);
+        AccelZSample = 0;
+        AccelZMax = 0;
+        AccelZMin = 4;
+        //Serial.print("AccelZRange value is: ");
+        //Serial.println(AccelZRange);
+        if (AccelZRange > AccelZRangeThreshold)
+        {
+          AccelZCounter++;
+        }
       }
     }
-  }else{
-    LastAccelSampleTime = millis();
-    //Serial.print("The total coutner is: ");
-    //Serial.println(AccelCounter);
-    if (AccelCounter > AccelCounterThreshold){
-      Add = true;
-    }else{
-      Add = false;
-    }
-    AccelCounter = 0;
+  }
+  else
+  {
+      LastAccelSampleTime = millis();
+      //Serial.print("The AccelZ counter is: ");
+      //Serial.println(AccelZCounter);
+      if (AccelZCounter > AccelZCounterThreshold)
+      {
+        Add = true;
+      }
+      else
+      {
+        Add = false;
+      }
+      AccelZCounter = 0;
   }
 }
+
 
 static void Check4Delete(void){
   if ((digitalRead(ButtonPin) == HIGH)) {
