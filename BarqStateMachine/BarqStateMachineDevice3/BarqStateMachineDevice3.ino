@@ -27,6 +27,15 @@
 #define TIME_LEDUPDATE 500
 #define TIME_FLASHRED 100
 
+#define AccelSampleTimeLength 1000 // 2000 millisecond
+#define AccelCounterThreshold 100
+#define AccelThreshold 2.5
+#define TIME_DEBOUNCE 1000
+#define TIME_LEDUPDATE 500
+#define TIME_FLASHRED 100
+#define AccelZCounterThreshold 7
+#define AccelZRangeThreshold 1
+
 // Modifed NeoPixel sample for the holiday craft project
 // Parameter 1 = number of pixels in strip
 // Parameter 2 = pin number (most are valid)
@@ -94,6 +103,12 @@ int AccelCounter = 0;
 static uint8_t MAC_array[6];
 static char MAC_char[18];
 static String MAC_string;
+static uint8_t AccelZCounter;
+static double AccelZ;
+static double AccelZMax = 0;
+static double AccelZMin = 4;
+static double AccelZRange;
+static uint8_t AccelZSample = 0;
 
 // for LED
 static uint32_t off = strip.Color(0,0,0);
@@ -166,27 +181,76 @@ void loop() {
 
 
 /*---------------------------- Event Checker ---------------------------*/
-static void Check4Add(void){
-  if ((millis() - LastAccelSampleTime) < AccelSampleTimeLength){
-    if (accel.available())
-    {
-      // First, use accel.read() to read the new variables:
+//static void Check4Add(void){
+//  if ((millis() - LastAccelSampleTime) < AccelSampleTimeLength){
+//    if (accel.available())
+//    {
+//      // First, use accel.read() to read the new variables:
+//      accel.read();
+//      Accelz = accel.cz;
+//      if (Accelz > AccelThreshold){
+//        AccelCounter++;
+//      }
+//    }
+//  }else{
+//    LastAccelSampleTime = millis();
+//    //Serial.print("The total coutner is: ");
+//    //Serial.println(AccelCounter);
+//    if (AccelCounter > AccelCounterThreshold){
+//      Add = true;
+//    }else{
+//      Add = false;
+//    }
+//    AccelCounter = 0;
+//  }
+//}
+
+static void Check4Add(void)
+{
+  if ((millis() - LastAccelSampleTime) < AccelSampleTimeLength)
+  {
+    if(accel.available()){
       accel.read();
-      Accelz = accel.cz;
-      if (Accelz > AccelThreshold){
-        AccelCounter++;
+      AccelZ = accel.cz;
+      //Serial.print("AccelZ value is: ");
+      //Serial.println(AccelZ);
+      if (AccelZ > AccelZMax)
+      {
+        AccelZMax = AccelZ;
+      }
+      if (AccelZ < AccelZMin)
+      {
+        AccelZMin = AccelZ;
+      }
+      AccelZSample++;
+      if (AccelZSample > 10){
+        AccelZRange = (AccelZMax - AccelZMin);
+        AccelZSample = 0;
+        AccelZMax = 0;
+        AccelZMin = 4;
+        //Serial.print("AccelZRange value is: ");
+        //Serial.println(AccelZRange);
+        if (AccelZRange > AccelZRangeThreshold)
+        {
+          AccelZCounter++;
+        }
       }
     }
-  }else{
-    LastAccelSampleTime = millis();
-    //Serial.print("The total coutner is: ");
-    //Serial.println(AccelCounter);
-    if (AccelCounter > AccelCounterThreshold){
-      Add = true;
-    }else{
-      Add = false;
-    }
-    AccelCounter = 0;
+  }
+  else
+  {
+      LastAccelSampleTime = millis();
+      //Serial.print("The AccelZ counter is: ");
+      //Serial.println(AccelZCounter);
+      if (AccelZCounter > AccelZCounterThreshold)
+      {
+        Add = true;
+      }
+      else
+      {
+        Add = false;
+      }
+      AccelZCounter = 0;
   }
 }
 
@@ -219,7 +283,7 @@ static void CheckDebounceTimerExpired() {
 
 static void CheckDeletefromTablet(void)
 {
-  FirebaseObject object = Firebase.get("62548d08-ca1c-4685-b49e-7812d14dc96c/RunningQueue/18fe34d460aa");
+  FirebaseObject object = Firebase.get("be613b9e-acfe-4486-ae6b-3236079a788c/RunningQueue/18fe34d460aa");
   String& json = (String&)object;
   if (json.equals("null")) {
     Serial.println("Deleted");
@@ -232,7 +296,7 @@ static void CheckDeletefromTablet(void)
 static void CheckQueuePosition(void)
 {
   // Queue Position is 1
-  FirebaseObject object = Firebase.get("62548d08-ca1c-4685-b49e-7812d14dc96c/RunningQueue/18fe34d460aa/QueuePosition");
+  FirebaseObject object = Firebase.get("be613b9e-acfe-4486-ae6b-3236079a788c/RunningQueue/18fe34d460aa/QueuePosition");
   CurrentQueuePos = (int)object;
   //Serial.print("QueuePosition is: ");
   //Serial.println(QueuePos);
@@ -295,12 +359,12 @@ static void LEDInit(void) {
 }
 
 static void Add2Firebase(void){
-  Firebase.set("62548d08-ca1c-4685-b49e-7812d14dc96c/RunningQueue/18fe34d460aa/MACid", "18fe34d460aa");
-  //Firebase.set("62548d08-ca1c-4685-b49e-7812d14dc96c/RunningQueue/18fe34d460aa/QueuePosition", 5);
+  Firebase.set("be613b9e-acfe-4486-ae6b-3236079a788c/RunningQueue/18fe34d460aa/MACid", "18fe34d460aa");
+  //Firebase.set("be613b9e-acfe-4486-ae6b-3236079a788c/RunningQueue/18fe34d460aa/QueuePosition", 5);
 }
 
 static void Delete2Firebase(void){
-  Firebase.remove("62548d08-ca1c-4685-b49e-7812d14dc96c/RunningQueue/18fe34d460aa");
+  Firebase.remove("be613b9e-acfe-4486-ae6b-3236079a788c/RunningQueue/18fe34d460aa");
 }
 
 static void ReadMACID(void){
