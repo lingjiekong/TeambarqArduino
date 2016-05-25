@@ -136,7 +136,7 @@ void setup() {
   LEDInit();
   LastAccelSampleTime = millis();
   CurrentState = STATE_WAITING;
-  Serial.println("CurrentState = STATE_WAITING");
+  Serial.println("CurrentState = STATE_INIT");
 }
 
 /*------------------------------ Main Loop ------------------------------*/
@@ -153,6 +153,7 @@ void loop() {
      Check4Start();
      if (true == CurrentButtonPinStatus){
       CurrentState = STATE_WAITING;
+      Serial.println("CurrentState = STATE_WAITING");
       CurrentButtonPinStatus = false;
      }
     break;
