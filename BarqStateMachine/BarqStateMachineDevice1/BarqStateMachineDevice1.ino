@@ -144,6 +144,7 @@ void loop() {
   switch (CurrentState) {
     case STATE_INIT:
      // Event Checkers
+     CheckDebounceTimerExpired();
      Check4Start();
      if (true == CurrentButtonPinStatus){
       CurrentState = STATE_WAITING;
@@ -267,6 +268,13 @@ static void Check4Start(void){
     CurrentButtonPinStatus = false;
     //Serial.println("ButtonPin is low at check4start"); 
   }
+  if ((true == CurrentButtonPinStatus) && (false == Debouncing_Flag)) { // if legit Button Press
+    Debouncing_Flag = true; // Debouncing flag set, ignore subsequent button presses for duration of debounce timer
+    Serial.println("Start Button Pressed");
+    LastTimeDebounce = millis();
+  } else { // fake button press
+    // Do nothing 
+  }    
 }
 
 static void Check4Delete(void){
