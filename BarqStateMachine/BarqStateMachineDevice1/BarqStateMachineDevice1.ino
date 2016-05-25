@@ -26,7 +26,7 @@
 #define TIME_DEBOUNCE 1000
 #define TIME_LEDUPDATE 500
 #define TIME_FLASHRED 100
-#define AccelZCounterThreshold 7
+#define AccelZCounterThreshold 4
 #define AccelZRangeThreshold 1
 
 // Modifed NeoPixel sample for the holiday craft project
@@ -238,6 +238,7 @@ static void Check4Add(void)
       if (AccelZCounter > AccelZCounterThreshold)
       {
         Add = true;
+        fadeblue2blue();
       }
       else
       {
