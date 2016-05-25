@@ -283,7 +283,7 @@ static void CheckDebounceTimerExpired() {
 
 static void CheckDeletefromTablet(void)
 {
-  FirebaseObject object = Firebase.get("be613b9e-acfe-4486-ae6b-3236079a788c/RunningQueue/18fe34d460aa");
+  FirebaseObject object = Firebase.get("6e14c151-0ca3-43b2-b2ab-1ec1bbcd0db0/RunningQueue/18fe34d460aa");
   String& json = (String&)object;
   if (json.equals("null")) {
     Serial.println("Deleted");
@@ -296,7 +296,7 @@ static void CheckDeletefromTablet(void)
 static void CheckQueuePosition(void)
 {
   // Queue Position is 1
-  FirebaseObject object = Firebase.get("be613b9e-acfe-4486-ae6b-3236079a788c/RunningQueue/18fe34d460aa/QueuePosition");
+  FirebaseObject object = Firebase.get("6e14c151-0ca3-43b2-b2ab-1ec1bbcd0db0/RunningQueue/18fe34d460aa/QueuePosition");
   CurrentQueuePos = (int)object;
   //Serial.print("QueuePosition is: ");
   //Serial.println(QueuePos);
@@ -359,12 +359,12 @@ static void LEDInit(void) {
 }
 
 static void Add2Firebase(void){
-  Firebase.set("be613b9e-acfe-4486-ae6b-3236079a788c/RunningQueue/18fe34d460aa/MACid", "18fe34d460aa");
-  //Firebase.set("be613b9e-acfe-4486-ae6b-3236079a788c/RunningQueue/18fe34d460aa/QueuePosition", 5);
+  Firebase.set("6e14c151-0ca3-43b2-b2ab-1ec1bbcd0db0/RunningQueue/18fe34d460aa", "0");
+  //Firebase.set("6e14c151-0ca3-43b2-b2ab-1ec1bbcd0db0/RunningQueue/18fe34d460aa/QueuePosition", 5);
 }
 
 static void Delete2Firebase(void){
-  Firebase.remove("be613b9e-acfe-4486-ae6b-3236079a788c/RunningQueue/18fe34d460aa");
+  Firebase.remove("6e14c151-0ca3-43b2-b2ab-1ec1bbcd0db0/RunningQueue/18fe34d460aa");
 }
 
 static void ReadMACID(void){
