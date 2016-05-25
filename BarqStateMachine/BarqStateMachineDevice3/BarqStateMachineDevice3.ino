@@ -54,7 +54,7 @@ static void Check4Delete(void);
 static void CheckDebounceTimerExpired(void);
 static void CheckDeletefromTablet(void);
 static void CheckQueuePosition(void);
-
+static void Check4Start(void);
 
 // Functions
 static void WifiInit(void);
@@ -85,7 +85,7 @@ uint32_t Wheel(byte WheelPos);
 // type of state variable should match that of enum in header file
 
 // for Accel
-typedef enum {STATE_WAITING, STATE_IN_QUEUE} BarqState_t;
+typedef enum {STATE_INIT, STATE_WAITING, STATE_IN_QUEUE} BarqState_t;
 BarqState_t CurrentState;
 MMA8452Q accel;
 static unsigned long LastAccelSampleTime;
@@ -147,6 +147,15 @@ void loop() {
   
   // State Machine
   switch (CurrentState) {
+    case STATE_INIT:
+     // Event Checkers
+     Check4Start();
+     if (true == CurrentButtonPinStatus){
+      CurrentState = STATE_WAITING;
+      CurrentButtonPinStatus = false;
+     }
+    break;
+    
     case STATE_WAITING:
      // Event Checkers
       Check4Add();
@@ -252,6 +261,16 @@ static void Check4Add(void)
         Add = false;
       }
       AccelZCounter = 0;
+  }
+}
+
+static void Check4Start(void){
+  if ((digitalRead(ButtonPin) == HIGH)) {
+    CurrentButtonPinStatus = true;
+    //Serial.println("ButtonPin is high at check4start"); 
+  }else{
+    CurrentButtonPinStatus = false;
+    //Serial.println("ButtonPin is low at check4start"); 
   }
 }
 

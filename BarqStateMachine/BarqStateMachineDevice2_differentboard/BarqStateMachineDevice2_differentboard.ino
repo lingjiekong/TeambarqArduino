@@ -27,8 +27,8 @@
 #define TIME_DEBOUNCE 1000
 #define TIME_LEDUPDATE 500
 #define TIME_FLASHRED 100
-#define AccelZCounterThreshold 4
-#define AccelZRangeThreshold 1
+#define AccelZCounterThreshold 3
+#define AccelZRangeThreshold 0.8
 
 // Modifed NeoPixel sample for the holiday craft project
 // Parameter 1 = number of pixels in strip
@@ -48,6 +48,7 @@ static void Check4Delete(void);
 static void CheckDebounceTimerExpired(void);
 static void CheckDeletefromTablet(void);
 static void CheckQueuePosition(void);
+static void Check4Start(void);
 
 // Functions
 static void WifiInit(void);
@@ -78,7 +79,7 @@ uint32_t Wheel(byte WheelPos);
 // type of state variable should match that of enum in header file
 
 // for Accel
-typedef enum {STATE_WAITING, STATE_IN_QUEUE} BarqState_t;
+typedef enum {STATE_INIT, STATE_WAITING, STATE_IN_QUEUE} BarqState_t;
 BarqState_t CurrentState;
 MMA8452Q accel;
 static unsigned long LastAccelSampleTime;
@@ -128,7 +129,7 @@ void setup() {
   ReadMACID();
   LEDInit();
   LastAccelSampleTime = millis();
-  CurrentState = STATE_WAITING;
+  CurrentState = STATE_INIT;
   Serial.println("CurrentState = STATE_WAITING");
 }
 
@@ -140,6 +141,15 @@ void loop() {
   
   // State Machine
   switch (CurrentState) {
+    case STATE_INIT:
+     // Event Checkers
+     Check4Start();
+     if (true == CurrentButtonPinStatus){
+      CurrentState = STATE_WAITING;
+      CurrentButtonPinStatus = false;
+     }
+    break;
+
     case STATE_WAITING:
      // Event Checkers
       Check4Add();
@@ -206,8 +216,8 @@ static void Check4Add(void)
     if(accel.available()){
       accel.read();
       AccelZ = accel.cz;
-      Serial.print("AccelZ value is: ");
-      Serial.println(AccelZ);
+      //Serial.print("AccelZ value is: ");
+      //Serial.println(AccelZ);
       if (AccelZ > AccelZMax)
       {
         AccelZMax = AccelZ;
@@ -227,6 +237,8 @@ static void Check4Add(void)
         if (AccelZRange > AccelZRangeThreshold)
         {
           AccelZCounter++;
+          //Serial.print(">>>>>>>>>>> The AccelZ counter is: ");
+          //Serial.println(AccelZCounter);          
         }
       }
     }
@@ -249,6 +261,15 @@ static void Check4Add(void)
   }
 }
 
+static void Check4Start(void){
+  if ((digitalRead(ButtonPin) == HIGH)) {
+    CurrentButtonPinStatus = true;
+    //Serial.println("ButtonPin is high at check4start"); 
+  }else{
+    CurrentButtonPinStatus = false;
+    //Serial.println("ButtonPin is low at check4start"); 
+  }
+}
 
 static void Check4Delete(void){
   if ((digitalRead(ButtonPin) == HIGH)) {

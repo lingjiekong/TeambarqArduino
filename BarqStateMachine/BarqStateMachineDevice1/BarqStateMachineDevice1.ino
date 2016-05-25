@@ -47,7 +47,7 @@ static void Check4Delete(void);
 static void CheckDebounceTimerExpired(void);
 static void CheckDeletefromTablet(void);
 static void CheckQueuePosition(void);
-
+static void Check4Start(void);
 
 // Functions
 static void WifiInit(void);
@@ -78,7 +78,7 @@ uint32_t Wheel(byte WheelPos);
 // type of state variable should match that of enum in header file
 
 // for Accel
-typedef enum {STATE_WAITING, STATE_IN_QUEUE} BarqState_t;
+typedef enum {STATE_INIT, STATE_WAITING, STATE_IN_QUEUE} BarqState_t;
 BarqState_t CurrentState;
 MMA8452Q accel;
 static unsigned long LastAccelSampleTime;
@@ -91,6 +91,7 @@ static bool Delete = false;
 static bool Debouncing_Flag = false;
 static bool CurrentButtonPinStatus = false; // put pull down resistor on the circuit
 static bool LastButtonPinStatus = false; // put pull down resistor on the cirucit
+static bool StartFlag = false; // Start flag to start the LED for the first time and change state from STATE_INIT to STATE_WAIT
 float Accelz = 0;
 int AccelCounter = 0;
 static uint8_t MAC_array[6];
@@ -117,6 +118,7 @@ static uint16_t j_Cycle = 0;
 static uint8_t FlashRedCounter = 0;
 static uint8_t CurrentQueuePos = 0;
 static uint8_t LastQueuePos = 0;
+
 /*------------------------------ Module Code ------------------------------*/
 void setup() {
   // put your setup code here, to run once:
@@ -128,7 +130,7 @@ void setup() {
   ReadMACID();
   LEDInit();
   LastAccelSampleTime = millis();
-  CurrentState = STATE_WAITING;
+  CurrentState = STATE_INIT;
   Serial.println("CurrentState = STATE_WAITING");
 }
 
@@ -140,6 +142,15 @@ void loop() {
   
   // State Machine
   switch (CurrentState) {
+    case STATE_INIT:
+     // Event Checkers
+     Check4Start();
+     if (true == CurrentButtonPinStatus){
+      CurrentState = STATE_WAITING;
+      CurrentButtonPinStatus = false;
+     }
+     break;
+     
     case STATE_WAITING:
      // Event Checkers
       Check4Add();
@@ -248,14 +259,23 @@ static void Check4Add(void)
   }
 }
 
+static void Check4Start(void){
+  if ((digitalRead(ButtonPin) == HIGH)) {
+    CurrentButtonPinStatus = true;
+    //Serial.println("ButtonPin is high at check4start"); 
+  }else{
+    CurrentButtonPinStatus = false;
+    //Serial.println("ButtonPin is low at check4start"); 
+  }
+}
 
 static void Check4Delete(void){
   if ((digitalRead(ButtonPin) == HIGH)) {
     CurrentButtonPinStatus = true;
-    //Serial.println("ButtonPin is high"); 
+    //Serial.println("ButtonPin is high at check4delete"); 
   }else{
     CurrentButtonPinStatus = false;
-    //Serial.println("ButtonPin is low"); 
+    //Serial.println("ButtonPin is low at check4delete"); 
   }
   //if (CurrentButtonPinStatus != LastButtonPinStatus) { 
     if ((true == CurrentButtonPinStatus) && (false == Debouncing_Flag)) { // if legit Button Press
