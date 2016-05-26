@@ -35,6 +35,7 @@
 #define TIME_FLASHRED 100
 #define AccelZCounterThreshold 4
 #define AccelZRangeThreshold 1
+#define FirebaseSamplePeriod 500 
 
 // Modifed NeoPixel sample for the holiday craft project
 // Parameter 1 = number of pixels in strip
@@ -93,6 +94,7 @@ static unsigned long LastLEDSampleTime;
 static unsigned long LastTimeDebounce;
 static unsigned long LastTime;
 static unsigned long LastFlashRed;
+static unsigned long LastFirebaseTime;
 static bool Add = false;
 static bool Delete = false;
 static bool Debouncing_Flag = false;
@@ -325,33 +327,37 @@ static void CheckDeletefromTablet(void)
 static void CheckQueuePosition(void)
 {
   // Queue Position is 1
-  FirebaseObject object = Firebase.get("6e14c151-0ca3-43b2-b2ab-1ec1bbcd0db0/RunningQueue/18fe34d460aa/QueuePosition");
-  CurrentQueuePos = (int)object;
-  //Serial.print("QueuePosition is: ");
-  //Serial.println(QueuePos);
-  if (CurrentQueuePos != LastQueuePos){
-    if (1 == CurrentQueuePos){
-      LEDServiceFlag = false;
-      //Serial.println("Color is Pink");
-      fadepink2red();
-    }
-    else if (2 == CurrentQueuePos){
-      LEDServiceFlag = false;
-      //Serial.println("Color is Pink");
-      fadeblue2pink();
-    }
-    else{
-      LEDServiceFlag = false;
-      //Serial.println("Color is Blue");
-      fadeblue2blue();
-    }
-    LastQueuePos = CurrentQueuePos;
-  }
-  if (1 == CurrentQueuePos)
+  if ((millis() - LastFirebaseTime) > FirebaseSamplePeriod)
   {
-    LEDServiceFlag = false;
-    FlashRedService();
-    //Serial.println("Color is flashred");
+    FirebaseObject object = Firebase.get("6e14c151-0ca3-43b2-b2ab-1ec1bbcd0db0/RunningQueue/18fe34d460aa/QueuePosition");
+    CurrentQueuePos = (int)object;
+    //Serial.print("QueuePosition is: ");
+    //Serial.println(QueuePos);
+    if (CurrentQueuePos != LastQueuePos){
+      if (1 == CurrentQueuePos){
+        LEDServiceFlag = false;
+        //Serial.println("Color is Pink");
+        fadepink2red();
+      }
+      else if (2 == CurrentQueuePos){
+        LEDServiceFlag = false;
+        //Serial.println("Color is Pink");
+        fadeblue2pink();
+      }
+      else{
+        LEDServiceFlag = false;
+        //Serial.println("Color is Blue");
+        fadeblue2blue();
+      }
+      LastQueuePos = CurrentQueuePos;
+    }
+    if (1 == CurrentQueuePos)
+    {
+      LEDServiceFlag = false;
+      FlashRedService();
+      //Serial.println("Color is flashred");
+    }
+    LastFirebaseTime = millis();
   }
 }
 
