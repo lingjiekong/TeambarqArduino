@@ -25,10 +25,11 @@
 #define AccelThreshold 2.5
 #define TIME_DEBOUNCE 1000
 #define TIME_LEDUPDATE 500
-#define TIME_FLASHRED 100
+#define TIME_FLASHRED 500
 #define AccelZCounterThreshold 4
 #define AccelZRangeThreshold 1
-#define FirebaseSamplePeriod 500
+#define FirebaseSamplePeriod 1000
+#define FirebaseDeletePeriod 1000
 
 // Modifed NeoPixel sample for the holiday craft project
 // Parameter 1 = number of pixels in strip
@@ -88,6 +89,7 @@ static unsigned long LastTimeDebounce;
 static unsigned long LastTime;
 static unsigned long LastFlashRed;
 static unsigned long LastFirebaseTime;
+static unsigned long LastDeleteTime;
 static bool Add = false;
 static bool Delete = false;
 static bool Debouncing_Flag = false;
@@ -309,13 +311,17 @@ static void CheckDebounceTimerExpired() {
 
 static void CheckDeletefromTablet(void)
 {
-  FirebaseObject object = Firebase.get("6e14c151-0ca3-43b2-b2ab-1ec1bbcd0db0/RunningQueue/5ccf7f006c6c");
-  String& json = (String&)object;
-  if (json.equals("null")) {
-    Serial.println("Deleted");
-    Delete = true;
-  } else {
-    //Serial.println("exists");
+  if ((millis() - LastDeleteTime) > FirebaseDeletePeriod)
+  {
+    FirebaseObject object = Firebase.get("6e14c151-0ca3-43b2-b2ab-1ec1bbcd0db0/RunningQueue/5ccf7f006c6c");
+    String& json = (String&)object;
+    if (json.equals("null")) {
+      Serial.println("Deleted");
+      Delete = true;
+    } else {
+      //Serial.println("exists");
+    }
+    LastDeleteTime = millis();
   }
 }
 
