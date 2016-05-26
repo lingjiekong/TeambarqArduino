@@ -85,7 +85,7 @@ uint32_t Wheel(byte WheelPos);
 // type of state variable should match that of enum in header file
 
 // for Accel
-typedef enum {STATE_INIT, STATE_WAITING, STATE_IN_QUEUE} BarqState_t;
+typedef enum {STATE_INIT, STATE_BLUE, STATE_PINK, STATE_RED, STATE_WAITING, STATE_IN_QUEUE} BarqState_t;
 BarqState_t CurrentState;
 MMA8452Q accel;
 static unsigned long LastAccelSampleTime;
@@ -152,11 +152,47 @@ void loop() {
      CheckDebounceTimerExpired();
      Check4Start();
      if (true == CurrentButtonPinStatus){
+      CurrentState = STATE_BLUE;
+      Serial.println("CurrentState = STATE_BLUE");
+      CurrentButtonPinStatus = false;
+      fadeblue2blue();
+     }
+     break;
+
+    case STATE_BLUE:
+     // Event Checkers
+     CheckDebounceTimerExpired();
+     Check4Start();
+     if (true == CurrentButtonPinStatus){
+      CurrentState = STATE_PINK;
+      Serial.println("CurrentState = STATE_PINK");
+      CurrentButtonPinStatus = false;
+      fadeblue2pink();
+     }
+     break;
+
+    case STATE_PINK:
+     // Event Checkers
+     CheckDebounceTimerExpired();
+     Check4Start();
+     if (true == CurrentButtonPinStatus){
+      CurrentState = STATE_RED;
+      Serial.println("CurrentState = STATE_RED");
+      CurrentButtonPinStatus = false;
+      fadepink2red();
+     }
+     break;
+
+    case STATE_RED:
+     // Event Checkers
+     CheckDebounceTimerExpired();
+     Check4Start();
+     if (true == CurrentButtonPinStatus){
       CurrentState = STATE_WAITING;
       Serial.println("CurrentState = STATE_WAITING");
       CurrentButtonPinStatus = false;
      }
-    break;
+     break;
     
     case STATE_WAITING:
      // Event Checkers

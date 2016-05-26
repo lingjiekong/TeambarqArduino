@@ -20,12 +20,6 @@
 #define ButtonPin 12 // Delete Button
 #define DebugPin 15 // Blue Init Debug LED
 
-#define AccelSampleTimeLength 1000 // 2000 millisecond
-#define AccelCounterThreshold 100
-#define AccelThreshold 2.5
-#define TIME_DEBOUNCE 1000
-#define TIME_LEDUPDATE 500
-#define TIME_FLASHRED 100
 
 #define AccelSampleTimeLength 1000 // 2000 millisecond
 #define AccelCounterThreshold 100
@@ -33,8 +27,8 @@
 #define TIME_DEBOUNCE 1000
 #define TIME_LEDUPDATE 500
 #define TIME_FLASHRED 100
-#define AccelZCounterThreshold 4
-#define AccelZRangeThreshold 1
+#define AccelZCounterThreshold 3
+#define AccelZRangeThreshold 0.8
 
 // Modifed NeoPixel sample for the holiday craft project
 // Parameter 1 = number of pixels in strip
@@ -85,7 +79,7 @@ uint32_t Wheel(byte WheelPos);
 // type of state variable should match that of enum in header file
 
 // for Accel
-typedef enum {STATE_INIT, STATE_WAITING, STATE_IN_QUEUE} BarqState_t;
+typedef enum {STATE_INIT, STATE_BLUE, STATE_PINK, STATE_RED, STATE_WAITING, STATE_IN_QUEUE} BarqState_t;
 BarqState_t CurrentState;
 MMA8452Q accel;
 static unsigned long LastAccelSampleTime;
@@ -152,12 +146,48 @@ void loop() {
      CheckDebounceTimerExpired();
      Check4Start();
      if (true == CurrentButtonPinStatus){
+      CurrentState = STATE_BLUE;
+      Serial.println("CurrentState = STATE_BLUE");
+      CurrentButtonPinStatus = false;
+      fadeblue2blue();
+     }
+     break;
+
+    case STATE_BLUE:
+     // Event Checkers
+     CheckDebounceTimerExpired();
+     Check4Start();
+     if (true == CurrentButtonPinStatus){
+      CurrentState = STATE_PINK;
+      Serial.println("CurrentState = STATE_PINK");
+      CurrentButtonPinStatus = false;
+      fadeblue2pink();
+     }
+     break;
+
+    case STATE_PINK:
+     // Event Checkers
+     CheckDebounceTimerExpired();
+     Check4Start();
+     if (true == CurrentButtonPinStatus){
+      CurrentState = STATE_RED;
+      Serial.println("CurrentState = STATE_RED");
+      CurrentButtonPinStatus = false;
+      fadepink2red();
+     }
+     break;
+
+    case STATE_RED:
+     // Event Checkers
+     CheckDebounceTimerExpired();
+     Check4Start();
+     if (true == CurrentButtonPinStatus){
       CurrentState = STATE_WAITING;
       Serial.println("CurrentState = STATE_WAITING");
       CurrentButtonPinStatus = false;
      }
-    break;
-    
+     break;
+
     case STATE_WAITING:
      // Event Checkers
       Check4Add();
@@ -220,6 +250,7 @@ static void Check4Add(void)
 {
   if ((millis() - LastAccelSampleTime) < AccelSampleTimeLength)
   {
+    puts("checking for add");
     if(accel.available()){
       accel.read();
       AccelZ = accel.cz;
@@ -244,6 +275,8 @@ static void Check4Add(void)
         if (AccelZRange > AccelZRangeThreshold)
         {
           AccelZCounter++;
+          //Serial.print(">>>>>>>>>>> The AccelZ counter is: ");
+          //Serial.println(AccelZCounter);          
         }
       }
     }
@@ -280,7 +313,7 @@ static void Check4Start(void){
     LastTimeDebounce = millis();
   } else { // fake button press
     // Do nothing 
-  }  
+  }    
 }
 
 static void Check4Delete(void){
@@ -312,7 +345,7 @@ static void CheckDebounceTimerExpired() {
 
 static void CheckDeletefromTablet(void)
 {
-  FirebaseObject object = Firebase.get("6e14c151-0ca3-43b2-b2ab-1ec1bbcd0db0/RunningQueue/18fe34d460aa");
+  FirebaseObject object = Firebase.get("6e14c151-0ca3-43b2-b2ab-1ec1bbcd0db0/RunningQueue/18fe34d40e2c");
   String& json = (String&)object;
   if (json.equals("null")) {
     Serial.println("Deleted");
@@ -325,7 +358,7 @@ static void CheckDeletefromTablet(void)
 static void CheckQueuePosition(void)
 {
   // Queue Position is 1
-  FirebaseObject object = Firebase.get("6e14c151-0ca3-43b2-b2ab-1ec1bbcd0db0/RunningQueue/18fe34d460aa/QueuePosition");
+  FirebaseObject object = Firebase.get("6e14c151-0ca3-43b2-b2ab-1ec1bbcd0db0/RunningQueue/18fe34d40e2c/QueuePosition");
   CurrentQueuePos = (int)object;
   //Serial.print("QueuePosition is: ");
   //Serial.println(QueuePos);
@@ -375,6 +408,7 @@ static void WifiInit(void){
 
 static void AccelInit(void){
   // I2C for accelerometer int
+  //Wire.pins(16,14); // wire.pins(sda,scl) use gpio 16,14 for i2c comm for accel
   accel.init();
   Serial.println("End of AccelInit");
   digitalWrite(DebugPin, HIGH);
@@ -388,12 +422,12 @@ static void LEDInit(void) {
 }
 
 static void Add2Firebase(void){
-  Firebase.set("6e14c151-0ca3-43b2-b2ab-1ec1bbcd0db0/RunningQueue/18fe34d460aa", "0");
-  //Firebase.set("6e14c151-0ca3-43b2-b2ab-1ec1bbcd0db0/RunningQueue/18fe34d460aa/QueuePosition", 5);
+  Firebase.set("6e14c151-0ca3-43b2-b2ab-1ec1bbcd0db0/RunningQueue/18fe34d40e2c", "0");
+  //Firebase.set("6e14c151-0ca3-43b2-b2ab-1ec1bbcd0db0/RunningQueue/18fe34d40e2c/QueuePosition", 5);
 }
 
 static void Delete2Firebase(void){
-  Firebase.remove("6e14c151-0ca3-43b2-b2ab-1ec1bbcd0db0/RunningQueue/18fe34d460aa");
+  Firebase.remove("6e14c151-0ca3-43b2-b2ab-1ec1bbcd0db0/RunningQueue/18fe34d40e2c");
 }
 
 static void ReadMACID(void){
