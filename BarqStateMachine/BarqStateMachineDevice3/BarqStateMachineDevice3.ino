@@ -25,8 +25,6 @@
 #define AccelThreshold 2.5
 #define TIME_DEBOUNCE 1000
 #define TIME_LEDUPDATE 500
-#define TIME_FLASHRED 100
-
 #define AccelSampleTimeLength 1000 // 2000 millisecond
 #define AccelCounterThreshold 100
 #define AccelThreshold 2.5
